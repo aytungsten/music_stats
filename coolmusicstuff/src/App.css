@@ -13,6 +13,13 @@
   }
 }
 
+#sidebyside {
+  display: flex;
+  flex-wrap: wrap;
+  flex-direction: row;
+  justify-content: space-around;
+}
+
 .App-header {
   background-color: #282c34;
   min-height: 100vh;

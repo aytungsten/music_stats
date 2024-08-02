@@ -2,6 +2,10 @@ import React, {useState, useEffect} from "react";
 import './App.css';
 import { authEndpoint, redirectUri, scopes } from "./auth_config";
 import SpotifyWebApi from 'spotify-web-api-js'
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import { Avatar, ListItemIcon, ListItemText } from "@mui/material";
+
 
 const spotify = new SpotifyWebApi();
 
@@ -10,7 +14,12 @@ const App = () => {
   const loginUrl = `${authEndpoint}?client_id=${CLIENT_ID}&redirect_uri=${redirectUri}&scope=${scopes.join("%20")}&response_type=token&show_dialog=true`
   const [accessToken, setaccessToken] = useState("");
   const [fiftytopTracks, setfiftytopTracks] = useState([]);
+  const [STfiftytopTracks, setSTfiftytopTracks] = useState([]);
+  const [MTfiftytopTracks, setMTfiftytopTracks] = useState([]);
 
+  const [recommendations, setrecommendations] = useState([]);
+  const [loggedIn, setloggedIn] = useState(false);
+  const [display, setDisplay] = useState([]);
 
 
 
@@ -20,11 +29,18 @@ const App = () => {
       setaccessToken(getTokenFromUrl().access_token);
       console.log(getTokenFromUrl().access_token);
       window.location.hash="";
+      setloggedIn(true);
     }
 
-  }, []);
-  console.log(accessToken);
+  }, [])
 
+  useEffect(() => {
+    if (accessToken != ""){
+      getLongTermTopTracks();
+      getMiddleTermTopTracks();
+      getShortTermTopTracks();
+    }
+  }, [accessToken])
 
 
   //useEffect(() => {
@@ -45,7 +61,6 @@ const App = () => {
   // }, []);
 
   async function fetchWebApi(endpoint, method, body) {
-    console.log(accessToken);
     const res = await fetch(`https://api.spotify.com/${endpoint}`, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -56,35 +71,58 @@ const App = () => {
     return await res.json();
   }
   
-  async function getTopTracks(){
+  async function getLongTermTopTracks(){
     // Endpoint reference : https://developer.spotify.com/documentation/web-api/reference/get-users-top-artists-and-tracks
-    return (await fetchWebApi(
+    const x = await fetchWebApi(
       'v1/me/top/tracks?time_range=long_term&limit=50', 'GET'
-    )).items;
+    ).then((data) => {
+      setfiftytopTracks(printTracks(data.items))
+    });
+  }
+
+  async function getShortTermTopTracks(){
+    // Endpoint reference : https://developer.spotify.com/documentation/web-api/reference/get-users-top-artists-and-tracks
+    const x = await fetchWebApi(
+      'v1/me/top/tracks?time_range=short_term&limit=50', 'GET'
+    ).then((data) => {
+      setSTfiftytopTracks(printTracks(data.items))
+    });
+  }
+
+  async function getMiddleTermTopTracks(){
+    // Endpoint reference : https://developer.spotify.com/documentation/web-api/reference/get-users-top-artists-and-tracks
+    const x = await fetchWebApi(
+      'v1/me/top/tracks?time_range=medium_term&limit=50', 'GET'
+    ).then((data) => {
+      setMTfiftytopTracks(printTracks(data.items))
+    });
+  }
+    
+  
+  async function getRecommendations(){
+    // Endpoint reference : https://developer.spotify.com/documentation/web-api/reference/get-recommendations
+    const x = await fetchWebApi(
+      `v1/recommendations?limit=50&seed_tracks=${STfiftytopTracks.slice(0,5).map(fiftytopTracks => fiftytopTracks[3]).join(',')}`, 'GET'
+    ).then((data) => {
+    setrecommendations(printTracks(data.tracks))});
+  }
+
+
+    
+  function printTracks(data) {
+    const track = [];
+    for (let i = 0; i < 50; i++) {
+      track.push([
+        data[i].album.images[0]["url"],
+        data[i].name,
+        data[i].artists.map(artist => artist.name).join(', '),
+        data[i].id,
+        data[i]
+      ]);
+    }
+    return track
   }
   
-  async function printTopTracks() {
-    var topTracks = await getTopTracks()
-    .then((data) => {
-      const track = [];
-      for (let i = 0; i < 50; i++) {
-        track.push([
-          data[i].album.images[0]["url"],
-          data[i].name,
-          data[i].artists.map(artist => artist.name).join(', ')
-        ]);
-      }
-      setfiftytopTracks(track);
-    });
-    
-    // console.log(
-    //   topTracks?.map(
-    //     ({name, artists}) =>
-    //       `${name} by ${artists.map(artist => artist.name).join(', ')}`)
-    // );
-
-
-  }
 
   const getTokenFromUrl = () => {
     return window.location.hash
@@ -98,26 +136,58 @@ const App = () => {
       }, {});
   }
 
+
  
 
   return (
-    <div className>
-      <a href={loginUrl}>hi</a>
-      <h1 onClick = {(event) => printTopTracks()}>click me after logging in</h1>
-      <h5>
-      {fiftytopTracks.map((top, i) => {
+    <div>
+      {!loggedIn && <a href={loginUrl}>hi</a>}
+      {loggedIn && <div id='sidebyside'>
+      <div>
+      <div id='sidebyside'>
+      <h1 onClick={(event) => setDisplay(fiftytopTracks)}>Long</h1>
+      <h1 onClick={(event) => setDisplay(MTfiftytopTracks)}>Middle</h1>
+      <h1 onClick={(event) => setDisplay(STfiftytopTracks)}>Short</h1>
+      </div>
+      <List sx={{ width: '100%', maxWidth: 600, bgcolor: 'background.paper' }}>
+      {display.map((top, i) => {
               return (
-                <div
+                <ListItem sx={{}}
                   key={i}
                 >
-                  <img src={top[0]} height={"50px"} alt={top[1]} />
-                  <h5>
-                    {top[1]}, {top[2]}
-                  </h5>
-                </div>
+                  
+                  <ListItemIcon>
+                    <img src={top[0]} height={"40px"} alt={top[1]} />
+                  </ListItemIcon>
+                  
+                   <ListItemText primary={top[1]} secondary={top[2]} ></ListItemText>
+                </ListItem>
               );
             })}
-      </h5>
+      </List>
+      </div>
+      <div>
+      <h1 onClick={(event) => getRecommendations()}>click for recs</h1>
+      <List sx={{ width: '100%', maxWidth: 480, bgcolor: 'background.paper' }}>
+      {recommendations.map((top, i) => {
+              return (
+                <ListItem
+                  key={i}
+                >
+                  
+                  <ListItemIcon>
+                    <img src={top[0]} height={"40px"} alt={top[1]} />
+                  </ListItemIcon>
+                  
+                   <ListItemText primary={top[1]} secondary={top[2]} ></ListItemText>
+                </ListItem>
+              );
+            })}
+      </List>
+      </div>
+      </div>}
+      
+      
     </div>
   );
 }
