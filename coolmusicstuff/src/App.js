@@ -5,6 +5,7 @@ import SpotifyWebApi from 'spotify-web-api-js'
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import { Avatar, ListItemIcon, ListItemText } from "@mui/material";
+import { create } from "@mui/material/styles/createTransitions";
 
 
 const spotify = new SpotifyWebApi();
@@ -16,11 +17,10 @@ const App = () => {
   const [fiftytopTracks, setfiftytopTracks] = useState([]);
   const [STfiftytopTracks, setSTfiftytopTracks] = useState([]);
   const [MTfiftytopTracks, setMTfiftytopTracks] = useState([]);
-
   const [recommendations, setrecommendations] = useState([]);
   const [loggedIn, setloggedIn] = useState(false);
   const [display, setDisplay] = useState([]);
-
+  const [userInfo, setUserInfo] = useState({});
 
 
 
@@ -39,6 +39,8 @@ const App = () => {
       getLongTermTopTracks();
       getMiddleTermTopTracks();
       getShortTermTopTracks();
+      getUserInfo();
+      console.log(userInfo)
     }
   }, [accessToken])
 
@@ -70,6 +72,35 @@ const App = () => {
     });
     return await res.json();
   }
+
+  async function createPlaylist(){
+    return await fetchWebApi(`v1/users/${userInfo.id}/playlists`, 'POST', 
+      {
+        "name": "some recs for you",
+        "description": "based on ur most recent listening habits",
+        "public": false
+      }
+    )
+  }
+
+  async function createRecommendationsPlaylist(){
+    const t = await createPlaylist().then((data) => {
+      console.log(data)
+      let t = [];
+      for (let i = 0; i < 50; i++) {
+        t.push(recommendations[i][4]);
+      }
+
+      fetchWebApi(`v1/playlists/${data.id}/tracks`, 'POST',
+        {'uris': t}
+       )
+    })
+  }
+
+  async function getUserInfo() {
+    const x = await fetchWebApi('v1/me', 'GET')
+    setUserInfo(x)
+  }
   
   async function getLongTermTopTracks(){
     // Endpoint reference : https://developer.spotify.com/documentation/web-api/reference/get-users-top-artists-and-tracks
@@ -97,18 +128,15 @@ const App = () => {
       setMTfiftytopTracks(printTracks(data.items))
     });
   }
-    
-  
+
   async function getRecommendations(){
     // Endpoint reference : https://developer.spotify.com/documentation/web-api/reference/get-recommendations
     const x = await fetchWebApi(
       `v1/recommendations?limit=50&seed_tracks=${STfiftytopTracks.slice(0,5).map(fiftytopTracks => fiftytopTracks[3]).join(',')}`, 'GET'
     ).then((data) => {
     setrecommendations(printTracks(data.tracks))});
-  }
+  } 
 
-
-    
   function printTracks(data) {
     const track = [];
     for (let i = 0; i < 50; i++) {
@@ -117,13 +145,12 @@ const App = () => {
         data[i].name,
         data[i].artists.map(artist => artist.name).join(', '),
         data[i].id,
-        data[i]
+        data[i].uri
       ]);
     }
     return track
   }
   
-
   const getTokenFromUrl = () => {
     return window.location.hash
       .substring(1)
@@ -149,7 +176,7 @@ const App = () => {
       <h1 onClick={(event) => setDisplay(MTfiftytopTracks)}>Middle</h1>
       <h1 onClick={(event) => setDisplay(STfiftytopTracks)}>Short</h1>
       </div>
-      <List sx={{ width: '100%', maxWidth: 600, bgcolor: 'background.paper' }}>
+      <List sx={{ width: '80%', maxWidth: 600, bgcolor: 'background.paper' }}>
       {display.map((top, i) => {
               return (
                 <ListItem sx={{}}
@@ -168,7 +195,8 @@ const App = () => {
       </div>
       <div>
       <h1 onClick={(event) => getRecommendations()}>click for recs</h1>
-      <List sx={{ width: '100%', maxWidth: 480, bgcolor: 'background.paper' }}>
+      <button onClick={(event) => createRecommendationsPlaylist()}>Make a playlist with these songs!</button>
+      <List sx={{ width: '80%', maxWidth: 480, bgcolor: 'background.paper' }}>
       {recommendations.map((top, i) => {
               return (
                 <ListItem
