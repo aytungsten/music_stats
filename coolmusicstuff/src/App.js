@@ -1,18 +1,20 @@
-import React, {useState, useEffect} from "react";
+import React, {useState, useEffect, useCallback} from "react";
 import './App.css';
 import { authEndpoint, redirectUri, scopes } from "./auth_config";
-import SpotifyWebApi from 'spotify-web-api-js'
+import SpotifyWebApi from 'spotify-web-api-js';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import { Avatar, ListItemIcon, ListItemText, Tooltip } from "@mui/material";
 import { create } from "@mui/material/styles/createTransitions";
 import ListItemButton from '@mui/material/ListItemButton';
-import {BarChart} from '@mui/x-charts/BarChart'
+import {BarChart, barElementClasses } from '@mui/x-charts/BarChart';
 
 
 
 const spotify = new SpotifyWebApi();
-let hoverTopTracks = Array.from({length: 50}, i => i = false);
+
+let audio = "";
+let playingTrack = "";
 const App = () => {
   const CLIENT_ID = "29ec048756da4eb092460068d82fa4a8";
   const loginUrl = `${authEndpoint}?client_id=${CLIENT_ID}&redirect_uri=${redirectUri}&scope=${scopes.join("%20")}&response_type=token&show_dialog=true`
@@ -24,11 +26,7 @@ const App = () => {
   const [loggedIn, setloggedIn] = useState(false);
   const [display, setDisplay] = useState([]);
   const [userInfo, setUserInfo] = useState({});
-
-  const [STsongFT, setSTsongFT] = useState([]);
-  const [MTsongFT, setMTsongFT] = useState([]);
-  const [LTsongFT, setLTsongFT] = useState([]);
-
+  const [sound, setSound] = useState();
 
   useEffect(() => {
     if (window.location.hash != "") {
@@ -90,6 +88,22 @@ const App = () => {
     )
   }
 
+  // async function playSound(song) {
+  //   const { sound } = await Audio.Sound.createAsync({uri: song, shouldPlay: true})
+  //   setSound(sound);
+  //   await sound.playAsync();
+  // }
+
+  // useEffect(() => {
+  //   return sound
+  //     ? () => {
+  //         console.log('Unloading Sound');
+  //         sound.unloadAsync();
+  //       }
+  //     : undefined;
+  // }, [sound]);
+
+
   async function createRecommendationsPlaylist(){
     const t = await createPlaylist().then((data) => {
       console.log(data)
@@ -116,6 +130,12 @@ const App = () => {
     ).then((data) => {
       printandStatTracks(data.items, setfiftytopTracks)
     });
+  }
+
+  async function getRecentlyPlayedTracks(){
+    const res = await fetchWebApi(
+      'v1/me/player/recently-played?limit=50'
+    )
   }
 
   async function getShortTermTopTracks(){
@@ -173,7 +193,8 @@ const App = () => {
         data[i].id,
         data[i].uri,
         data[i].external_urls.spotify,
-        info[i]
+        info[i],
+        data[i].preview_url
       ])}})
     console.log(track)
     setFunction(track)
@@ -206,7 +227,6 @@ const App = () => {
     )
     console.log(x)
   }
-
   return (
     <div>
       {!loggedIn && <a href={loginUrl}>hi</a>}
@@ -216,24 +236,45 @@ const App = () => {
       <button onClick={(event) => setDisplay(fiftytopTracks)}>12 months</button>
       <button onClick={(event) => setDisplay(MTfiftytopTracks)}>6 months</button>
       <button onClick={(event) => setDisplay(STfiftytopTracks)}>1 month</button>
-      <List sx={{ width: '100%', maxWidth: 320, bgcolor: 'background.paper' }}>
+      <List sx={{ width: '100%', maxWidth: 320, bgcolor: 'background.paper', listStyle: "decimal", pl: 3 }}>
       {display.map((top, i) => {
               return (
                 <Tooltip placement="right" title={
+                <div>
+                <h1>{top[1]}</h1>
+                <div>
                 <BarChart
+
                   series={[
-                    {data: [top[6]['danceability'], top[6]['energy'], top[6]['acousticness'], top[6]['instrumentalness']]}]}
-                  bottomAxis= {null}
-                  xAxis = {[{data: ["dance", "energy", "acousticness", "instrumentalness"],  scaleType: 'band'}]}
-                  height = {120}
-                  width = {120}
+                    {data: [top[6]['danceability']*10], label: 'Danceability'}, 
+                    {data: [top[6]['energy']*10], label: 'Energy'}, 
+                    {data: [top[6]['acousticness']*10], label: 'Acousticness'},
+                    {data: [top[6]['instrumentalness']*10], label: 'Instrumentalness'}]}
+                  xAxis = {[{data: ['Audio Features'],  scaleType: 'band'}]}
+                  height = {100}
+                  width = {150}
+                  slotProps={{ legend: { hidden: true } }}
                   margin={{ top: 10, bottom: 30, left: 40, right: 10 }}
                   >
-                </BarChart>
+                  </BarChart>
+
+                </div>
+                </div>
                 } >
-                <ListItemButton sx={{}} 
+                <ListItemButton sx={{ display: "list-item" }}
                   key={i}
-                  href={top[5]}
+                  onClick={(event) => {
+                    if (playingTrack == top[1]) {
+                      audio.pause();
+                      playingTrack = "";
+                    }
+                    else {
+                    if (audio != "") {
+                      audio.pause();
+                    }
+                    audio = new Audio(top[7])
+                    audio.play()
+                    playingTrack = top[1]}}}
                 >                  
                   <ListItemIcon>
                     <img src={top[0]} height={"40px"} alt={top[1]} />
@@ -245,58 +286,8 @@ const App = () => {
               );
             })}
       </List>
+
       </div>
-      {/* <div>
-      <h1>Different stats (WIP)</h1>
-      <BarChart
-        series={[
-          {data: display.map((display) => display[6]['danceability']).sort(function(a,b) { return a - b;})}
-        ]}
-        bottomAxis = {null}
-        xAxis= {[{data: (display.map((display) => [display[1], display[6]['danceability']]).sort(function(a,b) {return a[1] - b[1]}).map((x) => x[0])), scaleType: 'band'}]}
-        yAxis={[{label: 'Danceability'}]}
-        height = {150}
-        width= {200}
-        margin={{ top: 10, bottom: 30, left: 40, right: 10 }}
-        >
-      </BarChart>
-      <BarChart
-        series={[
-          {data: display.map((display) => display[6]['energy']).sort(function(a,b) { return a - b;})}
-        ]}
-        bottomAxis = {null}
-        xAxis= {[{data: (display.map((display) => [display[1], display[6]['energy']]).sort(function(a,b) {return a[1] - b[1]}).map((x) => x[0])), scaleType: 'band'}]}
-        yAxis={[{label: 'Energy'}]}
-        height = {150}
-        width= {200}
-        margin={{ top: 10, bottom: 30, left: 40, right: 10 }}
-        >
-      </BarChart>
-      <BarChart
-        series={[
-          {data: display.map((display) => display[6]['acousticness']).sort(function(a,b) { return a - b;})}
-        ]}
-        bottomAxis = {null}
-        xAxis= {[{data: (display.map((display) => [display[1], display[6]['acousticness']]).sort(function(a,b) {return a[1] - b[1]}).map((x) => x[0])), scaleType: 'band'}]}
-        yAxis={[{label: 'Acousticness'}]}
-        height = {150}
-        width= {200}
-        margin={{ top: 10, bottom: 30, left: 40, right: 10 }}
-        >
-      </BarChart>
-      <BarChart
-        series={[
-          {data: display.map((display) => display[6]['instrumentalness']).sort(function(a,b) { return a - b;})}
-        ]}
-        bottomAxis = {null}
-        xAxis= {[{data: (display.map((display) => [display[1], display[6]['instrumentalness']]).sort(function(a,b) {return a[1] - b[1]}).map((x) => x[0])), scaleType: 'band'}]}
-        yAxis={[{label: 'Instrumentality'}]}
-        height = {150}
-        width= {200}
-        margin={{ top: 10, bottom: 30, left: 40, right: 10 }}
-        >
-      </BarChart>
-      </div> */}
       <div>
       <h1 onClick={(event) => getRecommendations()}>click here for recs</h1>
       <div onClick={(event) => createRecommendationsPlaylist()} id = 'buttonsss'></div>
@@ -304,20 +295,35 @@ const App = () => {
       {recommendations.map((top, i) => {
               return (
                 <Tooltip placement="right" title={
+                  <div>
+                  <h1>{top[1]}</h1>
+                  <div>
                   <BarChart
                     series={[
-                      {data: [top[6]['danceability'], top[6]['energy'], top[6]['acousticness'], top[6]['instrumentalness']]}]}
-                    bottomAxis= {null}
-                    xAxis = {[{data: ["dance", "energy", "acousticness", "instrumentalness"],  scaleType: 'band'}]}
-                    height = {120}
-                    width = {120}
+                      {data: [top[6]['danceability']*10], label: 'Danceability'}, 
+                      {data: [top[6]['energy']*10], label: 'Energy'}, 
+                      {data: [top[6]['acousticness']*10], label: 'Acousticness'},
+                      {data: [top[6]['instrumentalness']*10], label: 'Instrumentalness'}]}
+                    xAxis = {[{data: ['Audio Features'],  scaleType: 'band'}]}
+                    height = {100}
+                    width = {150}
+                    slotProps={{ legend: { hidden: true } }}
                     margin={{ top: 10, bottom: 30, left: 40, right: 10 }}
                     >
                   </BarChart>
+                  </div>
+                  </div>
                   } >
                   <ListItemButton sx={{}} 
                     key={i}
-                    href={top[5]}
+                    onClick={(event) => {
+                      if (audio != "") {
+                        audio.pause()
+
+                      }
+                      audio = new Audio(top[7])
+                      audio.play()
+                    }}
                   >                  
                     <ListItemIcon>
                       <img src={top[0]} height={"40px"} alt={top[1]} />
@@ -330,13 +336,15 @@ const App = () => {
             })}
       </List>
       </div>
+
       
 
       </div>}
       
-      
+    
     </div>
   );
 }
+
 
 export default App;
