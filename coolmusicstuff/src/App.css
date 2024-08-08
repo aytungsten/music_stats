@@ -17,12 +17,19 @@
   display: flex;
   flex-wrap: wrap;
   flex-direction: row;
-  justify-content: space-around;
+  justify-content: end;
+}
+
+.test {
+ height: 100vh;
+ width: 100vw;
 }
 
 #buttonsss
 
 #bro
+
+
 
 .App-header {
   background-color: #282c34;

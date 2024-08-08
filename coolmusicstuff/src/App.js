@@ -88,22 +88,6 @@ const App = () => {
     )
   }
 
-  // async function playSound(song) {
-  //   const { sound } = await Audio.Sound.createAsync({uri: song, shouldPlay: true})
-  //   setSound(sound);
-  //   await sound.playAsync();
-  // }
-
-  // useEffect(() => {
-  //   return sound
-  //     ? () => {
-  //         console.log('Unloading Sound');
-  //         sound.unloadAsync();
-  //       }
-  //     : undefined;
-  // }, [sound]);
-
-
   async function createRecommendationsPlaylist(){
     const t = await createPlaylist().then((data) => {
       console.log(data)
@@ -130,6 +114,10 @@ const App = () => {
     ).then((data) => {
       printandStatTracks(data.items, setfiftytopTracks)
     });
+  }
+
+  async function getTopArtists(){
+
   }
 
   async function getRecentlyPlayedTracks(){
@@ -230,18 +218,19 @@ const App = () => {
   return (
     <div>
       {!loggedIn && <a href={loginUrl}>hi</a>}
-      {loggedIn && <div id='sidebyside'>
+      {loggedIn && <div>
+      <div><img src={userInfo.images[0].url}></img></div>
       <div>
       <h1>Top songs</h1>
       <button onClick={(event) => setDisplay(fiftytopTracks)}>12 months</button>
       <button onClick={(event) => setDisplay(MTfiftytopTracks)}>6 months</button>
       <button onClick={(event) => setDisplay(STfiftytopTracks)}>1 month</button>
-      <List sx={{ width: '100%', maxWidth: 320, bgcolor: 'background.paper', listStyle: "decimal", pl: 3 }}>
+      <List sx={{display: "flex", flexWrap: "wrap", width: '100%', height: '50%', bgcolor: 'background.paper'}}>
       {display.map((top, i) => {
               return (
-                <Tooltip placement="right" title={
+                <Tooltip placement="top-end" title={
                 <div>
-                <h1>{top[1]}</h1>
+                <h3>{top[1]}</h3>
                 <div>
                 <BarChart
 
@@ -261,7 +250,7 @@ const App = () => {
                 </div>
                 </div>
                 } >
-                <ListItemButton sx={{ display: "list-item" }}
+                <ListItemButton sx={{width: 200}}
                   key={i}
                   onClick={(event) => {
                     if (playingTrack == top[1]) {
@@ -291,12 +280,12 @@ const App = () => {
       <div>
       <h1 onClick={(event) => getRecommendations()}>click here for recs</h1>
       <div onClick={(event) => createRecommendationsPlaylist()} id = 'buttonsss'></div>
-      <List sx={{ width: '100%', maxWidth: 320, bgcolor: 'background.paper' }}>
+      <List sx={{display: "flex", flexWrap: "wrap", width: '100%', height: '50%', bgcolor: 'background.paper'}}>
       {recommendations.map((top, i) => {
               return (
                 <Tooltip placement="right" title={
                   <div>
-                  <h1>{top[1]}</h1>
+                  <h3>{top[1]}</h3>
                   <div>
                   <BarChart
                     series={[
@@ -314,7 +303,7 @@ const App = () => {
                   </div>
                   </div>
                   } >
-                  <ListItemButton sx={{}} 
+                  <ListItemButton sx={{width: 200}} 
                     key={i}
                     onClick={(event) => {
                       if (audio != "") {
