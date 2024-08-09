@@ -3,16 +3,16 @@ import './App.css';
 import { authEndpoint, redirectUri, scopes } from "./auth_config";
 import SpotifyWebApi from 'spotify-web-api-js';
 import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
 import { Avatar, ListItemIcon, ListItemText, Tooltip } from "@mui/material";
-import { create } from "@mui/material/styles/createTransitions";
 import ListItemButton from '@mui/material/ListItemButton';
 import {BarChart, barElementClasses } from '@mui/x-charts/BarChart';
+import Modal from 'react-modal';
+import Exit from './photos/exit.png'
+import {ColorExtractor} from 'react-color-extractor'
 
 
 
 const spotify = new SpotifyWebApi();
-
 let audio = "";
 let playingTrack = "";
 const App = () => {
@@ -27,7 +27,10 @@ const App = () => {
   const [display, setDisplay] = useState([]);
   const [userInfo, setUserInfo] = useState({});
   const [sound, setSound] = useState();
-
+  const [show, setShow] = useState(false);
+  const [focus, setFocus] = useState([]);
+  const [hiddenLists, setHiddenLists] = useState(false)
+  const handleShow = () => setShow(true);
   useEffect(() => {
     if (window.location.hash != "") {
       setaccessToken(getTokenFromUrl().access_token);
@@ -182,7 +185,7 @@ const App = () => {
         data[i].uri,
         data[i].external_urls.spotify,
         info[i],
-        data[i].preview_url
+        data[i].preview_url,
       ])}})
     console.log(track)
     setFunction(track)
@@ -215,11 +218,51 @@ const App = () => {
     )
     console.log(x)
   }
+
+  
+
+  function Popup(data) {
+    
+    document.body.style.overflow = 'hidden';
+    return (
+      <Modal isOpen={show} className="popup" id = "songpop">
+        <img src= {Exit} alt="bro where is it" height={'40px'} onClick={(event) => {setShow(false); document.body.style.overflow = 'unset';                     if (audio != "") {
+                      audio.pause();
+                    }}} id="closeitup"></img>     
+        <div className="center">
+        <ColorExtractor rgb getColors={colors => {
+          document.getElementById('songpop').style.background = `linear-gradient(rgb(255,255,255,0.2), rgb(${colors[0].toString()}, 0.4))`
+        }}>
+        <img src={data[0]} height={"200px"}></img>
+        </ColorExtractor>
+        <div>
+        <h1>{data[1]}</h1>
+        <s4>{data[2]}</s4>
+
+        
+        </div>
+        <button onClick={                                       
+           (event) => {
+                    if (playingTrack == data[1]) {
+                      audio.pause();
+                      playingTrack = "";
+                    }
+                    else {
+                    if (audio != "") {
+                      audio.pause();
+                    }
+                    audio = new Audio(data[7])
+                    audio.play()
+                    playingTrack = data[1]}}}>Preview</button>
+        
+        </div>
+        </Modal>
+    )
+  }
   return (
     <div>
       {!loggedIn && <a href={loginUrl}>hi</a>}
-      {loggedIn && <div>
-      <div><img src={userInfo.images[0].url}></img></div>
+      {loggedIn && <div className="landing">
       <div>
       <h1>Top songs</h1>
       <button onClick={(event) => setDisplay(fiftytopTracks)}>12 months</button>
@@ -228,6 +271,7 @@ const App = () => {
       <List sx={{display: "flex", flexWrap: "wrap", width: '100%', height: '50%', bgcolor: 'background.paper'}}>
       {display.map((top, i) => {
               return (
+                <div>
                 <Tooltip placement="top-end" title={
                 <div>
                 <h3>{top[1]}</h3>
@@ -250,20 +294,10 @@ const App = () => {
                 </div>
                 </div>
                 } >
-                <ListItemButton sx={{width: 200}}
+                <ListItemButton sx={{width: 283, height: 90}}
                   key={i}
-                  onClick={(event) => {
-                    if (playingTrack == top[1]) {
-                      audio.pause();
-                      playingTrack = "";
-                    }
-                    else {
-                    if (audio != "") {
-                      audio.pause();
-                    }
-                    audio = new Audio(top[7])
-                    audio.play()
-                    playingTrack = top[1]}}}
+                  onClick={(event) => {handleShow(); setFocus(top)}}
+
                 >                  
                   <ListItemIcon>
                     <img src={top[0]} height={"40px"} alt={top[1]} />
@@ -272,10 +306,10 @@ const App = () => {
                    <ListItemText primary={top[1]} secondary={top[2]} ></ListItemText>
                 </ListItemButton>
                 </Tooltip>
+                </div>
               );
             })}
       </List>
-
       </div>
       <div>
       <h1 onClick={(event) => getRecommendations()}>click here for recs</h1>
@@ -283,44 +317,42 @@ const App = () => {
       <List sx={{display: "flex", flexWrap: "wrap", width: '100%', height: '50%', bgcolor: 'background.paper'}}>
       {recommendations.map((top, i) => {
               return (
-                <Tooltip placement="right" title={
-                  <div>
-                  <h3>{top[1]}</h3>
-                  <div>
-                  <BarChart
-                    series={[
-                      {data: [top[6]['danceability']*10], label: 'Danceability'}, 
-                      {data: [top[6]['energy']*10], label: 'Energy'}, 
-                      {data: [top[6]['acousticness']*10], label: 'Acousticness'},
-                      {data: [top[6]['instrumentalness']*10], label: 'Instrumentalness'}]}
-                    xAxis = {[{data: ['Audio Features'],  scaleType: 'band'}]}
-                    height = {100}
-                    width = {150}
-                    slotProps={{ legend: { hidden: true } }}
-                    margin={{ top: 10, bottom: 30, left: 40, right: 10 }}
-                    >
-                  </BarChart>
-                  </div>
-                  </div>
-                  } >
-                  <ListItemButton sx={{width: 200}} 
-                    key={i}
-                    onClick={(event) => {
-                      if (audio != "") {
-                        audio.pause()
+                <div>
+                <Tooltip placement="top-end" title={
+                <div>
+                <h3>{top[1]}</h3>
+                <div>
+                <BarChart
 
-                      }
-                      audio = new Audio(top[7])
-                      audio.play()
-                    }}
-                  >                  
-                    <ListItemIcon>
-                      <img src={top[0]} height={"40px"} alt={top[1]} />
-                    </ListItemIcon>
-                    
-                     <ListItemText primary={top[1]} secondary={top[2]} ></ListItemText>
-                  </ListItemButton>
-                  </Tooltip>
+                  series={[
+                    {data: [top[6]['danceability']*10], label: 'Danceability'}, 
+                    {data: [top[6]['energy']*10], label: 'Energy'}, 
+                    {data: [top[6]['acousticness']*10], label: 'Acousticness'},
+                    {data: [top[6]['instrumentalness']*10], label: 'Instrumentalness'}]}
+                  xAxis = {[{data: ['Audio Features'],  scaleType: 'band'}]}
+                  height = {100}
+                  width = {150}
+                  slotProps={{ legend: { hidden: true } }}
+                  margin={{ top: 10, bottom: 30, left: 40, right: 10 }}
+                  >
+                  </BarChart>
+
+                </div>
+                </div>
+                } >
+                <ListItemButton sx={{width: 283, height: 90}}
+                  key={i}
+                  onClick={(event) => {handleShow(); setFocus(top)}}
+
+                >                  
+                  <ListItemIcon>
+                    <img src={top[0]} height={"40px"} alt={top[1]} />
+                  </ListItemIcon>
+                  
+                   <ListItemText primary={top[1]} secondary={top[2]} ></ListItemText>
+                </ListItemButton>
+                </Tooltip>
+                </div>
               );
             })}
       </List>
@@ -329,6 +361,7 @@ const App = () => {
       
 
       </div>}
+      {show && Popup(focus)}
       
     
     </div>

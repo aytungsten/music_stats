@@ -24,7 +24,35 @@
  height: 100vh;
  width: 100vw;
 }
+#songpop {
+  z-index: 100%
+}
+.popup {
+  height: 100vh;
+  width: 100vw;
+  z-index: 100%;
+  margin: 0px;
+  position: absolute;
+}
+.center {
+  margin: auto;
+  margin-top: 8%;
+  width: 50%;
+  height: 50%;
+  text-align: center;
+}
+.landing {
+}
 
+#closeitup {
+  display: flex;
+  margin: 20px;
+}
+
+#login {
+  z-index: 9;
+  position: absolute
+}
 #buttonsss
 
 #bro
@@ -44,6 +72,20 @@
 
 .App-link {
   color: #61dafb;
+}
+
+.ReactModal__Overlay {
+  opacity: 0;
+  transition: opacity 1000ms ease-in-out;
+
+}
+
+.ReactModal__Overlay--after-open{
+  opacity: 80;
+}
+
+.ReactModal__Overlay--before-close{
+  opacity: 0;
 }
 
 @keyframes App-logo-spin {
