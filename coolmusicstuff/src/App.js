@@ -1,14 +1,15 @@
-import React, {useState, useEffect, useCallback} from "react";
-import './App.css';
+import React, {useState, useEffect} from "react";
+import '../src/App.css';
 import { authEndpoint, redirectUri, scopes } from "./auth_config";
 import SpotifyWebApi from 'spotify-web-api-js';
 import List from '@mui/material/List';
-import { Avatar, ListItemIcon, ListItemText, Tooltip } from "@mui/material";
+import {ListItemIcon, ListItemText, Tooltip, Button} from "@mui/material";
 import ListItemButton from '@mui/material/ListItemButton';
-import {BarChart, barElementClasses } from '@mui/x-charts/BarChart';
+import {BarChart} from '@mui/x-charts/BarChart';
 import Modal from 'react-modal';
-import Exit from './photos/exit.png'
-import {ColorExtractor} from 'react-color-extractor'
+import Exit from './photos/exit.png';
+import {ColorExtractor} from 'react-color-extractor';
+import { styled } from '@mui/material/styles';
 
 
 
@@ -26,17 +27,22 @@ const App = () => {
   const [loggedIn, setloggedIn] = useState(false);
   const [display, setDisplay] = useState([]);
   const [userInfo, setUserInfo] = useState({});
-  const [sound, setSound] = useState();
   const [show, setShow] = useState(false);
   const [focus, setFocus] = useState([]);
-  const [hiddenLists, setHiddenLists] = useState(false)
+  const [colors, setColors] = useState([]);
+  const [landingPage, setLandingPage] = useState(false);
+  const [profilePage, setProfilePage] = useState(false);
+  const [currentSong, setCurrentSong] = useState([]);
+  const [currentSongModal, setCurrentSongModal] = useState(false);
+
+  
   const handleShow = () => setShow(true);
   useEffect(() => {
     if (window.location.hash != "") {
       setaccessToken(getTokenFromUrl().access_token);
       console.log(getTokenFromUrl().access_token);
       window.location.hash="";
-      setloggedIn(true);
+      setLandingPage(true);
     }
 
   }, [])
@@ -47,11 +53,21 @@ const App = () => {
       getMiddleTermTopTracks();
       getShortTermTopTracks();
       getUserInfo();
+      getCurrentlyPlayingSong();
       console.log(fiftytopTracks)
       console.log(userInfo)
       setDisplay(fiftytopTracks);
+
     }
   }, [accessToken])
+
+  useEffect(() => {
+    if (accessToken != "") {
+    const playing = setTimeout(getCurrentlyPlayingSong, 10000);
+    
+    return () => clearTimeout(playing);
+    }
+  }, [currentSong])
 
   //useEffect(() => {
   //   var authParameters = {
@@ -108,6 +124,7 @@ const App = () => {
   async function getUserInfo() {
     const x = await fetchWebApi('v1/me', 'GET')
     setUserInfo(x)
+    setloggedIn(true)
   }
   
   async function getLongTermTopTracks(){
@@ -147,13 +164,32 @@ const App = () => {
     });
   }
 
+  async function getCurrentlyPlayingSong(){
+    const res = await fetchWebApi('v1/me/player/currently-playing').then((data) => {
+      if (data.item != null) {
+      console.log("current id: " + data.item.id + " old id: " + currentSong[3])
+      console.log(data.item);
+      printandStatTrack(data.item, setCurrentSong);
+      }
+    }).then(() => {
+      if (currentSong != []) {
+      return (<ColorExtractor rgb getColors={colors => {setColors(colors);
+        console.log(colors);
+        document.body.style.backgroundColor = `rgb(${colors[0].toString()},0.2)`
+        document.body.style.color = `rgb(${colors[2].toString()})`
+      }} maxColors = {3}>
+      <img src={currentSong[0]} height={"200px"}></img>
+      </ColorExtractor>)
+      }
+    })
+  }
+
   async function getRecommendations(){
     // Endpoint reference : https://developer.spotify.com/documentation/web-api/reference/get-recommendations
     const x = await fetchWebApi(
       `v1/recommendations?limit=50&seed_tracks=${STfiftytopTracks.slice(0,5).map(fiftytopTracks => fiftytopTracks[3]).join(',')}`, 'GET'
     ).then((data) => {
-      printandStatTracks(data.tracks, setrecommendations)
-    document.getElementById('buttonsss').innerHTML = '<button>Make a playlist with these songs!</button>'});
+      printandStatTracks(data.tracks, setrecommendations)})
   }
 
 
@@ -169,6 +205,24 @@ const App = () => {
         data[i].external_urls.spotify,
       ])
     }
+    console.log(track)
+    setFunction(track)
+  }
+
+  async function printandStatTrack(data, setFunction) {
+
+    const track = [];
+    const res = await getSongerStats(data).then((info) => {
+      track.push(
+        data.album.images[0]["url"],
+        data.name,
+        data.artists.map(artist => artist.name).join(', '),
+        data.id,
+        data.uri,
+        data.external_urls.spotify,
+        info,
+        data.preview_url,
+      )})
     console.log(track)
     setFunction(track)
   }
@@ -212,36 +266,43 @@ const App = () => {
   }
  
   async function getSongerStats(identifier) {
-    let ids = identifier[3]
-    const x =  await fetchWebApi(
-      `v1/audio-features/${ids}`, 'GET'
-    )
-    console.log(x)
+    console.log('identifier ' + identifier)
+    let ids = identifier.id
+    return (await fetchWebApi(
+      `v1/audio-features?ids=${ids}`, 'GET'
+    )).audio_features
   }
 
-  
 
-  function Popup(data) {
-    
+
+  function handleClose(set) {
+    set(false); 
+    document.body.style.overflow = 'unset'; 
+    if (audio != "") {
+      audio.pause();
+    }
+  }
+
+
+
+  function Popup(data, display, set) {
     document.body.style.overflow = 'hidden';
     return (
-      <Modal isOpen={show} className="popup" id = "songpop">
-        <img src= {Exit} alt="bro where is it" height={'40px'} onClick={(event) => {setShow(false); document.body.style.overflow = 'unset';                     if (audio != "") {
-                      audio.pause();
-                    }}} id="closeitup"></img>     
+      <Modal isOpen={display} className="popup" id = "songpop">
+        <img src= {Exit} alt="bro where is it" height={'40px'} onClick={(event) => {handleClose(set)}} id="closeitup"></img>     
         <div className="center">
-        <ColorExtractor rgb getColors={colors => {
-          document.getElementById('songpop').style.background = `linear-gradient(rgb(255,255,255,0.2), rgb(${colors[0].toString()}, 0.4))`
-        }}>
+        <ColorExtractor rgb getColors={colors => {setColors(colors);
+          console.log(colors);
+          document.getElementById('songpop').style.background = `linear-gradient(rgb(${colors[0].toString()},0.4), rgb(${colors[0].toString()}, 0.4))`
+          document.getElementById('songpop').style.color = `rgb(${colors[2].toString()})`
+        }} maxColors = {3}>
         <img src={data[0]} height={"200px"}></img>
         </ColorExtractor>
         <div>
-        <h1>{data[1]}</h1>
-        <s4>{data[2]}</s4>
-
-        
+        <h2 id="Name">{data[1]}</h2>
+        <p id="Name">{data[2]}</p>
         </div>
-        <button onClick={                                       
+        <Button color = "inherit" onClick={                                       
            (event) => {
                     if (playingTrack == data[1]) {
                       audio.pause();
@@ -253,22 +314,28 @@ const App = () => {
                     }
                     audio = new Audio(data[7])
                     audio.play()
-                    playingTrack = data[1]}}}>Preview</button>
-        
+                    playingTrack = data[1]}}}>Preview</Button>
+
         </div>
         </Modal>
     )
   }
+
+
+
   return (
     <div>
-      {!loggedIn && <a href={loginUrl}>hi</a>}
-      {loggedIn && <div className="landing">
+      {!loggedIn && <Button color="inherit" href={loginUrl} >hi</Button>}
+      {loggedIn && landingPage && <div>
       <div>
+      <div>
+        <img src= {userInfo.images[1].url} onClick = {(event) =>{setLandingPage(false); setProfilePage(true)}}  class='profilePic'></img>
+      </div>
       <h1>Top songs</h1>
-      <button onClick={(event) => setDisplay(fiftytopTracks)}>12 months</button>
-      <button onClick={(event) => setDisplay(MTfiftytopTracks)}>6 months</button>
-      <button onClick={(event) => setDisplay(STfiftytopTracks)}>1 month</button>
-      <List sx={{display: "flex", flexWrap: "wrap", width: '100%', height: '50%', bgcolor: 'background.paper'}}>
+      <Button color="inherit" onClick={(event) => setDisplay(fiftytopTracks)}>12 months</Button>
+      <Button color="inherit" onClick={(event) => setDisplay(MTfiftytopTracks)}>6 months</Button>
+      <Button color="inherit" onClick={(event) => setDisplay(STfiftytopTracks)}>1 month</Button>
+      <List sx={{display: "flex", flexWrap: "wrap", width: '100%', height: '50%'}}>
       {display.map((top, i) => {
               return (
                 <div>
@@ -293,7 +360,12 @@ const App = () => {
 
                 </div>
                 </div>
-                } >
+                } slotProps={{
+                  tooltip: {
+                    sx: {
+                    },
+                  },
+                }} >
                 <ListItemButton sx={{width: 283, height: 90}}
                   key={i}
                   onClick={(event) => {handleShow(); setFocus(top)}}
@@ -313,8 +385,11 @@ const App = () => {
       </div>
       <div>
       <h1 onClick={(event) => getRecommendations()}>click here for recs</h1>
-      <div onClick={(event) => createRecommendationsPlaylist()} id = 'buttonsss'></div>
-      <List sx={{display: "flex", flexWrap: "wrap", width: '100%', height: '50%', bgcolor: 'background.paper'}}>
+      {(recommendations.length != 0) && <div onClick={(event) => createRecommendationsPlaylist()} id = 'buttonsss'>
+      <Button color="inherit" >Make a playlist with these songs!</Button>
+      </div>}
+
+      <List sx={{display: "flex", flexWrap: "wrap", width: '100%', height: '50%'}}>
       {recommendations.map((top, i) => {
               return (
                 <div>
@@ -361,7 +436,21 @@ const App = () => {
       
 
       </div>}
-      {show && Popup(focus)}
+      {loggedIn && profilePage && <div id="profile">
+        <ColorExtractor src={userInfo.images[1].url} rgb getColors={colors => {
+        document.getElementById("profile").style.color = `rgb(${colors[0].toString()})`
+        document.getElementById("profile").style.backgroundColor = `rgb(${colors[0].toString()}, 0.1)`;
+        }} maxColors = {5}></ColorExtractor>
+        <div>
+        <img className = "picProfile"src= {userInfo.images[1].url} onClick = {(event) =>{setLandingPage(true); setProfilePage(false)}}></img>
+        </div>
+        <h1>{userInfo.display_name}</h1>
+        <h1>this is your profile</h1>
+        <Button color="inherit" onClick = {(event) => {setCurrentSongModal(true)}}>click to display current song</Button>
+        <Button color="inherit" onClick = {(event) =>{setLandingPage(true); setProfilePage(false)}}>click here to go back</Button>
+        </div>}
+      {show && Popup(focus, show, setShow)}
+      {currentSongModal && Popup(currentSong, currentSongModal, setCurrentSongModal)}
       
     
     </div>
