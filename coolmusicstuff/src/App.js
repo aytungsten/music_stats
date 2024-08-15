@@ -3,13 +3,16 @@ import '../src/App.css';
 import { authEndpoint, redirectUri, scopes } from "./auth_config";
 import SpotifyWebApi from 'spotify-web-api-js';
 import List from '@mui/material/List';
-import {ListItemIcon, ListItemText, Tooltip, Button} from "@mui/material";
+import {ListItemIcon, ListItemText, Tooltip, Button, IconButton, Icon} from "@mui/material";
 import ListItemButton from '@mui/material/ListItemButton';
 import {BarChart} from '@mui/x-charts/BarChart';
 import Modal from 'react-modal';
 import Exit from './photos/exit.png';
 import {ColorExtractor} from 'react-color-extractor';
 import { styled } from '@mui/material/styles';
+import PostAdd from '@mui/icons-material/PostAdd'
+import PlayArrow from '@mui/icons-material/PlayArrow'
+import Close from '@mui/icons-material/Close'
 
 
 
@@ -34,6 +37,12 @@ const App = () => {
   const [profilePage, setProfilePage] = useState(false);
   const [currentSong, setCurrentSong] = useState([]);
   const [currentSongModal, setCurrentSongModal] = useState(false);
+  const [currentSongColor, setCurrentSongColor] = useState();
+  const [postingPage, setPostingPage] = useState(false);
+  const [postSong, setPostSong] = useState([]);
+  const [timeout, settiming] = useState(false);
+
+
 
   
   const handleShow = () => setShow(true);
@@ -64,10 +73,20 @@ const App = () => {
   useEffect(() => {
     if (accessToken != "") {
     const playing = setTimeout(getCurrentlyPlayingSong, 10000);
+    if (currentSong != []) {
+      setCurrentSongColor(<ColorExtractor src={currentSong[0]} rgb getColors={colors => {setColors(colors);
+        console.log(colors);
+        document.body.style.backgroundColor = `rgb(${colors[0].toString()},0.4)`
+        document.body.style.color = `rgb(${colors[5].toString()})`
+      }} maxColors = {3} />)
+
+      }
+
+
     
     return () => clearTimeout(playing);
     }
-  }, [currentSong])
+  }, [currentSong, timeout])
 
   //useEffect(() => {
   //   var authParameters = {
@@ -94,6 +113,9 @@ const App = () => {
       method,
       body: JSON.stringify(body)
     });
+    if (res.status === 204 || res.status > 400) {
+      return false;
+  }
     return await res.json();
   }
 
@@ -165,22 +187,13 @@ const App = () => {
   }
 
   async function getCurrentlyPlayingSong(){
-    const res = await fetchWebApi('v1/me/player/currently-playing').then((data) => {
+    const res = await fetchWebApi('v1/me/player').then((data) => {
       if (data.item != null) {
       console.log("current id: " + data.item.id + " old id: " + currentSong[3])
       console.log(data.item);
       printandStatTrack(data.item, setCurrentSong);
       }
-    }).then(() => {
-      if (currentSong != []) {
-      return (<ColorExtractor rgb getColors={colors => {setColors(colors);
-        console.log(colors);
-        document.body.style.backgroundColor = `rgb(${colors[0].toString()},0.2)`
-        document.body.style.color = `rgb(${colors[2].toString()})`
-      }} maxColors = {3}>
-      <img src={currentSong[0]} height={"200px"}></img>
-      </ColorExtractor>)
-      }
+      settiming(!(timeout))
     })
   }
 
@@ -289,7 +302,7 @@ const App = () => {
     document.body.style.overflow = 'hidden';
     return (
       <Modal isOpen={display} className="popup" id = "songpop">
-        <img src= {Exit} alt="bro where is it" height={'40px'} onClick={(event) => {handleClose(set)}} id="closeitup"></img>     
+        <IconButton alt="bro where is it" height={'40px'} onClick={(event) => {handleClose(set)}} color= "inherit" id="closeitup" sx={{boxShadow: "none"}}><Close></Close></IconButton>     
         <div className="center">
         <ColorExtractor rgb getColors={colors => {setColors(colors);
           console.log(colors);
@@ -302,7 +315,7 @@ const App = () => {
         <h2 id="Name">{data[1]}</h2>
         <p id="Name">{data[2]}</p>
         </div>
-        <Button color = "inherit" onClick={                                       
+        <IconButton color = "inherit" onClick={                                       
            (event) => {
                     if (playingTrack == data[1]) {
                       audio.pause();
@@ -314,10 +327,30 @@ const App = () => {
                     }
                     audio = new Audio(data[7])
                     audio.play()
-                    playingTrack = data[1]}}}>Preview</Button>
-
+                    playingTrack = data[1]}}}><PlayArrow></PlayArrow></IconButton>
+        <IconButton color = "inherit" onClick={(event) => {setPostingPage(true); setPostSong(data)}}>
+          <PostAdd></PostAdd>
+        </IconButton>
         </div>
         </Modal>
+    )
+  }
+
+  function PostShell(display) {
+    return (
+      <Modal isOpen = {postingPage} onRequestClose={(event) => {setPostingPage(false); setPostSong([])}}>
+        <div id="postHeader">
+        <div>
+        <img src={display[0]} height={'150px'}></img>
+        <h3>{display[1]}</h3>
+        <p>{display[2]}</p>
+        </div>
+        <textarea placeholder="thoughts, feelings, stories" className="postText"></textarea>
+        </div>
+
+
+
+      </Modal>
     )
   }
 
@@ -325,9 +358,10 @@ const App = () => {
 
   return (
     <div>
-      {!loggedIn && <Button color="inherit" href={loginUrl} >hi</Button>}
+      {!loggedIn && <Button color="inherit" href={loginUrl} >Login with Spotify</Button>}
       {loggedIn && landingPage && <div>
       <div>
+      {currentSongColor}
       <div>
         <img src= {userInfo.images[1].url} onClick = {(event) =>{setLandingPage(false); setProfilePage(true)}}  class='profilePic'></img>
       </div>
@@ -437,21 +471,24 @@ const App = () => {
 
       </div>}
       {loggedIn && profilePage && <div id="profile">
+        <div id="closeitup">
         <ColorExtractor src={userInfo.images[1].url} rgb getColors={colors => {
-        document.getElementById("profile").style.color = `rgb(${colors[0].toString()})`
-        document.getElementById("profile").style.backgroundColor = `rgb(${colors[0].toString()}, 0.1)`;
+        document.getElementById("profile").style.color = `rgb(${colors[5].toString()})`
+        document.getElementById("profile").style.backgroundColor = `rgb(${colors[1].toString()}, 0.4)`;
         }} maxColors = {5}></ColorExtractor>
         <div>
         <img className = "picProfile"src= {userInfo.images[1].url} onClick = {(event) =>{setLandingPage(true); setProfilePage(false)}}></img>
         </div>
+        <div>
         <h1>{userInfo.display_name}</h1>
-        <h1>this is your profile</h1>
-        <Button color="inherit" onClick = {(event) => {setCurrentSongModal(true)}}>click to display current song</Button>
+        <Button color="inherit" onClick = {(event) => {setCurrentSongModal(true)}}>click to display most recent song</Button>
         <Button color="inherit" onClick = {(event) =>{setLandingPage(true); setProfilePage(false)}}>click here to go back</Button>
+        </div>
+        </div>
         </div>}
       {show && Popup(focus, show, setShow)}
       {currentSongModal && Popup(currentSong, currentSongModal, setCurrentSongModal)}
-      
+      {postingPage && PostShell(postSong)}
     
     </div>
   );

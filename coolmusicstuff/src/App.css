@@ -5,14 +5,13 @@
 body {
   font-family:'Roboto', sans-serif;
   background-color:rgb(245,245,220, 0.1);
-
+  transition: background-color 1000ms; 
 }
 
 
 #profile {
   height: 100vh;
   width: 100vw;
-  transition: opacity 1000ms ease-in-out;
 }
 
 #Button {
@@ -50,16 +49,30 @@ body {
 }
 
 
-#profile
+#profile{}
+
+
 
 
 
 
 #sidebyside {
   display: flex;
-  flex-wrap: wrap;
   flex-direction: row;
-  justify-content: end;
+}
+
+#postHeader {
+  display: flex;
+  flex-direction: row;
+  padding-bottom: 5vh;
+}
+
+.postText {
+  height: 45vh;
+  padding: 10px;
+  text-align: left;
+  vertical-align: top;
+  resize: none;
 }
 
 .test {
@@ -86,16 +99,15 @@ body {
 
 #closeitup {
   display: flex;
-  margin: 20px;
 }
 
 #login {
   z-index: 9;
   position: absolute
 }
-#buttonsss
+#buttonsss{}
 
-#bro
+#bro{}
 
 
 
@@ -120,7 +132,12 @@ body {
 
 .ReactModal__Overlay {
   opacity: 0;
-  transition: opacity 1000ms ease-in-out;
+  transition: all 1000ms ease-in-out;
+}
+
+.ReactModal__Body--open{
+  opacity: 100;
+  transition: all 1000ms;
 }
 
 .ReactModal__Overlay--after-open{
